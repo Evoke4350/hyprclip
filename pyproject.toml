@@ -1,0 +1,31 @@
+[project]
+name = "hyprclip"
+version = "0.1.0"
+description = "Small Hyprland/Omarchy clipboard manager using wl-clipboard and walker/gum"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Nate Bennett", email = "nathanib@pm.me" }]
+keywords = ["hyprland", "omarchy", "wayland", "clipboard", "walker", "wl-clipboard"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Desktop Environment",
+  "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/Evoke4350/hyprclip"
+Issues = "https://github.com/Evoke4350/hyprclip/issues"
+
+[project.scripts]
+hyprclip = "hyprclip.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
