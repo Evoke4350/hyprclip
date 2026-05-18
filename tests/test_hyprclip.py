@@ -13,6 +13,7 @@ from hyprclip.core import (
     parse_menu_selection,
     truncate_middle,
 )
+from hyprclip.cli import ESOTERIC_HYPRCLIP_BINDING_LINE, install_hyprland_config
 from hyprclip.waybar import add_hyprclip_waybar_module
 
 
@@ -109,6 +110,29 @@ def test_add_hyprclip_waybar_module_is_idempotent():
     updated = add_hyprclip_waybar_module(config)
 
     assert updated["modules-right"].count("custom/hyprclip") == 1
+
+
+def test_install_hyprland_config_replaces_super_v_with_esoteric_binding(tmp_path):
+    autostart = tmp_path / "autostart.conf"
+    bindings = tmp_path / "bindings.conf"
+    bindings.write_text("bindd = SUPER, V, Clipboard history, exec, hyprclip pick\n", encoding="utf-8")
+
+    install_hyprland_config(autostart=autostart, bindings=bindings)
+
+    content = bindings.read_text(encoding="utf-8")
+    assert "SUPER, V, Clipboard history" not in content
+    assert ESOTERIC_HYPRCLIP_BINDING_LINE in content
+
+
+def test_install_hyprland_config_uses_esoteric_binding_for_new_installs(tmp_path):
+    autostart = tmp_path / "autostart.conf"
+    bindings = tmp_path / "bindings.conf"
+
+    install_hyprland_config(autostart=autostart, bindings=bindings)
+
+    content = bindings.read_text(encoding="utf-8")
+    assert ESOTERIC_HYPRCLIP_BINDING_LINE in content
+    assert "SUPER, V, Clipboard history" not in content
 
 
 def test_truncate_middle_keeps_front_and_back():

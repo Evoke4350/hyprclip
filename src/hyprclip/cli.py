@@ -14,6 +14,8 @@ from .waybar import install_hyprclip_waybar_module
 
 APP_NAME = "hyprclip"
 DEFAULT_DB = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / APP_NAME / "clips.sqlite3"
+OLD_HYPRCLIP_BINDING_LINE = "bindd = SUPER, V, Clipboard history, exec, hyprclip pick"
+ESOTERIC_HYPRCLIP_BINDING_LINE = "bindd = SUPER ALT SHIFT, V, Clipboard history, exec, hyprclip pick"
 
 
 def run(cmd: list[str], *, input_text: str | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -147,6 +149,34 @@ def cmd_install_waybar(args: argparse.Namespace) -> int:
     return 0
 
 
+def ensure_config_line(path: Path, line: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = path.read_text(encoding="utf-8") if path.exists() else ""
+    if line not in content:
+        backup = path.with_suffix(path.suffix + ".hyprclip.bak")
+        if path.exists() and not backup.exists():
+            backup.write_text(content, encoding="utf-8")
+        if content and not content.endswith("\n"):
+            content += "\n"
+        content += f"\n# {APP_NAME}\n{line}\n"
+        path.write_text(content, encoding="utf-8")
+
+
+def install_hyprland_config(*, autostart: Path, bindings: Path) -> None:
+    autostart_line = "exec-once = uwsm-app -- hyprclip daemon"
+    ensure_config_line(autostart, autostart_line)
+
+    bindings.parent.mkdir(parents=True, exist_ok=True)
+    content = bindings.read_text(encoding="utf-8") if bindings.exists() else ""
+    if OLD_HYPRCLIP_BINDING_LINE in content:
+        backup = bindings.with_suffix(bindings.suffix + ".hyprclip.bak")
+        if not backup.exists():
+            backup.write_text(content, encoding="utf-8")
+        content = content.replace(OLD_HYPRCLIP_BINDING_LINE, ESOTERIC_HYPRCLIP_BINDING_LINE)
+        bindings.write_text(content, encoding="utf-8")
+    ensure_config_line(bindings, ESOTERIC_HYPRCLIP_BINDING_LINE)
+
+
 def cmd_install(args: argparse.Namespace) -> int:
     bin_dir = Path.home() / ".local/bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
@@ -162,21 +192,9 @@ def cmd_install(args: argparse.Namespace) -> int:
 
     autostart = Path.home() / ".config/hypr/autostart.conf"
     bindings = Path.home() / ".config/hypr/bindings.conf"
-    autostart_line = "exec-once = uwsm-app -- hyprclip daemon"
-    binding_line = "bindd = SUPER, V, Clipboard history, exec, hyprclip pick"
-    for path, line in [(autostart, autostart_line), (bindings, binding_line)]:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        content = path.read_text(encoding="utf-8") if path.exists() else ""
-        if line not in content:
-            backup = path.with_suffix(path.suffix + ".hyprclip.bak")
-            if path.exists() and not backup.exists():
-                backup.write_text(content, encoding="utf-8")
-            if content and not content.endswith("\n"):
-                content += "\n"
-            content += f"\n# {APP_NAME}\n{line}\n"
-            path.write_text(content, encoding="utf-8")
+    install_hyprland_config(autostart=autostart, bindings=bindings)
     print(f"installed {wrapper}")
-    print("Hyprland binding: SUPER+V opens clipboard history")
+    print("Hyprland binding: SUPER+ALT+SHIFT+V opens clipboard history")
     print("Reload Hyprland or run: hyprctl reload")
     return 0
 

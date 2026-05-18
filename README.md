@@ -13,7 +13,7 @@ A tiny MIT-licensed clipboard manager built for Hyprland/Omarchy.
 - Waybar custom module JSON for a top-right Omarchy clipboard indicator.
 - Launcher fallbacks: `rofi`, `wofi`, `fuzzel`, `gum`.
 - Deduplicates clips and moves reused clips to the top.
-- Simple Hyprland install command for autostart + `SUPER+V` binding.
+- Simple Hyprland install command for autostart + esoteric `SUPER+ALT+SHIFT+V` binding.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ PYTHONPATH=src python -m hyprclip.cli install
 exec-once = uwsm-app -- hyprclip daemon
 
 # ~/.config/hypr/bindings.conf
-bindd = SUPER, V, Clipboard history, exec, hyprclip pick
+bindd = SUPER ALT SHIFT, V, Clipboard history, exec, hyprclip pick
 ```
 
 Reload Hyprland after installing:
@@ -49,7 +49,7 @@ hyprctl reload
 hyprctl dispatch exec 'uwsm-app -- hyprclip daemon'
 ```
 
-Press `SUPER+V` to open clipboard history.
+Press `SUPER+ALT+SHIFT+V` to open clipboard history. `SUPER+V` is left alone so it can keep behaving like paste/app-native clipboard history.
 
 ## Commands
 
