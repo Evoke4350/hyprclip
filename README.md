@@ -9,6 +9,8 @@ A tiny MIT-licensed clipboard manager built for Hyprland/Omarchy.
 - Wayland-native clipboard access via `wl-copy`/`wl-paste`.
 - Searchable clipboard history stored locally in SQLite.
 - `walker --dmenu` integration for Omarchy/Hyprland.
+- Polished picker rows with icons for URLs, commands/code, multiline clips, and text.
+- Waybar custom module JSON for a top-right Omarchy clipboard indicator.
 - Launcher fallbacks: `rofi`, `wofi`, `fuzzel`, `gum`.
 - Deduplicates clips and moves reused clips to the top.
 - Simple Hyprland install command for autostart + `SUPER+V` binding.
@@ -55,6 +57,9 @@ Press `SUPER+V` to open clipboard history.
 hyprclip daemon              # watch clipboard continuously
 hyprclip pick                # open picker and copy chosen item
 hyprclip list -n 20          # print history
+hyprclip status              # print compact status, e.g. 󰅇 24
+hyprclip waybar              # print Waybar custom module JSON
+hyprclip install-waybar      # add top-right Waybar indicator to Omarchy config
 hyprclip add "manual text"   # add text manually
 hyprclip clear               # clear saved history
 hyprclip install             # install wrapper + Hyprland config lines
@@ -65,6 +70,30 @@ The clipboard database lives at:
 ```text
 ~/.local/share/hyprclip/clips.sqlite3
 ```
+
+## Waybar / Omarchy indicator
+
+Run:
+
+```bash
+hyprclip install-waybar
+pkill waybar && uwsm-app -- waybar
+```
+
+This adds a `custom/hyprclip` module to `~/.config/waybar/config.jsonc`:
+
+```json
+"custom/hyprclip": {
+  "exec": "hyprclip waybar",
+  "return-type": "json",
+  "interval": 2,
+  "on-click": "hyprclip pick",
+  "on-click-right": "hyprclip clear",
+  "tooltip": true
+}
+```
+
+The module shows a clipboard icon plus clip count. Click it to open history; right-click clears history.
 
 ## Development
 

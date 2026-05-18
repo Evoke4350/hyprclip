@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -8,7 +9,8 @@ import sys
 import time
 from pathlib import Path
 
-from .core import ClipStore, format_menu_line, parse_menu_selection
+from .core import ClipStore, format_menu_line, format_waybar_status, parse_menu_selection
+from .waybar import install_hyprclip_waybar_module
 
 APP_NAME = "hyprclip"
 DEFAULT_DB = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / APP_NAME / "clips.sqlite3"
@@ -60,7 +62,7 @@ def cmd_add(args: argparse.Namespace) -> int:
 def cmd_list(args: argparse.Namespace) -> int:
     store = ClipStore(args.db, max_items=args.max_items)
     for clip in store.list(limit=args.limit, query=args.query):
-        print(format_menu_line(clip.id, clip.text, max_preview=args.preview_width))
+        print(format_menu_line(clip, max_preview=args.preview_width))
     return 0
 
 
@@ -84,7 +86,7 @@ def cmd_pick(args: argparse.Namespace) -> int:
     if not clips:
         notify("No clipboard history yet")
         return 1
-    menu = "\n".join(format_menu_line(c.id, c.text, max_preview=args.preview_width) for c in clips) + "\n"
+    menu = "\n".join(format_menu_line(c, max_preview=args.preview_width) for c in clips) + "\n"
     selection = choose_with_launcher(menu, "Clipboard")
     if not selection:
         return 1
@@ -119,6 +121,29 @@ def cmd_daemon(args: argparse.Namespace) -> int:
 def cmd_clear(args: argparse.Namespace) -> int:
     count = ClipStore(args.db, max_items=args.max_items).clear()
     print(f"cleared {count} clips")
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    store = ClipStore(args.db, max_items=args.max_items)
+    status = format_waybar_status(store, tooltip_limit=args.tooltip_limit)
+    if args.json:
+        print(json.dumps(status, ensure_ascii=False))
+    else:
+        print(status["text"])
+    return 0
+
+
+def cmd_waybar(args: argparse.Namespace) -> int:
+    store = ClipStore(args.db, max_items=args.max_items)
+    print(json.dumps(format_waybar_status(store, tooltip_limit=args.tooltip_limit), ensure_ascii=False))
+    return 0
+
+
+def cmd_install_waybar(args: argparse.Namespace) -> int:
+    changed = install_hyprclip_waybar_module(args.config)
+    print(f"{'updated' if changed else 'already configured'} {args.config}")
+    print("Restart Waybar or run: pkill waybar && uwsm-app -- waybar")
     return 0
 
 
@@ -187,6 +212,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     clear = sub.add_parser("clear", help="Clear saved history")
     clear.set_defaults(func=cmd_clear)
+
+    status = sub.add_parser("status", help="Print clipboard history status for scripts")
+    status.add_argument("--json", action="store_true", help="Print Waybar-compatible JSON")
+    status.add_argument("--tooltip-limit", type=int, default=5)
+    status.set_defaults(func=cmd_status)
+
+    waybar = sub.add_parser("waybar", help="Print Waybar custom module JSON")
+    waybar.add_argument("--tooltip-limit", type=int, default=5)
+    waybar.set_defaults(func=cmd_waybar)
+
+    install_waybar = sub.add_parser("install-waybar", help="Add hyprclip to ~/.config/waybar/config.jsonc")
+    install_waybar.add_argument("--config", type=Path, default=Path.home() / ".config/waybar/config.jsonc")
+    install_waybar.set_defaults(func=cmd_install_waybar)
 
     install = sub.add_parser("install", help="Install ~/.local/bin wrapper and Hyprland autostart/keybinding")
     install.set_defaults(func=cmd_install)

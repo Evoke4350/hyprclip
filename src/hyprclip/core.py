@@ -5,6 +5,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,11 @@ class ClipStore:
             ).fetchall()
         return [_clip_from_row(row) for row in rows]
 
+    def count(self) -> int:
+        with self._connect() as conn:
+            row = conn.execute("SELECT count(*) AS count FROM clips").fetchone()
+        return int(row["count"])
+
     def clear(self) -> int:
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM clips")
@@ -133,8 +139,73 @@ def preview_text(text: str, max_preview: int = 120) -> str:
     return truncate_middle(" ⏎ ".join(line.strip() for line in text.splitlines()), max_preview)
 
 
-def format_menu_line(clip_id: int, text: str, max_preview: int = 120) -> str:
-    return f"{clip_id}\t{preview_text(text, max_preview)}"
+def detect_clip_kind(text: str) -> tuple[str, str]:
+    stripped = text.strip()
+    parsed = urlparse(stripped)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return "url", "󰖟"
+
+    first_line = stripped.splitlines()[0] if stripped else ""
+    command_prefixes = (
+        "git ",
+        "cd ",
+        "ls",
+        "cat ",
+        "grep ",
+        "rg ",
+        "python ",
+        "python3 ",
+        "pytest",
+        "npm ",
+        "pnpm ",
+        "cargo ",
+        "sudo ",
+        "docker ",
+        "kubectl ",
+        "hyprctl ",
+    )
+    if first_line.startswith(command_prefixes) or " && " in first_line or " | " in first_line:
+        return "command", ""
+
+    code_markers = ("def ", "class ", "function ", "import ", "from ", "const ", "let ", "var ", "#!/")
+    if first_line.startswith(code_markers) or "{\n" in stripped or "=>" in stripped:
+        return "code", "󰅩"
+
+    if "\n" in stripped:
+        return "multiline", "󰦨"
+
+    return "text", "󰅇"
+
+
+def human_age(last_used_at: float, now: float | None = None) -> str:
+    now = time.time() if now is None else now
+    seconds = max(0, int(now - last_used_at))
+    if seconds < 10:
+        return "now"
+    if seconds < 3_600:
+        return f"{max(1, seconds // 60)}m"
+    if seconds < 86_400:
+        return f"{seconds // 3_600}h"
+    return f"{seconds // 86_400}d"
+
+
+def format_menu_line(clip: Clip, max_preview: int = 120, now: float | None = None) -> str:
+    kind, icon = detect_clip_kind(clip.text)
+    age = human_age(clip.last_used_at, now=now)
+    return f"{clip.id}\t{icon} {age} {kind}  {preview_text(clip.text, max_preview)}"
+
+
+def format_waybar_status(store: ClipStore, now: float | None = None, tooltip_limit: int = 5) -> dict[str, str]:
+    count = store.count()
+    clips = store.list(limit=tooltip_limit)
+    if not clips:
+        return {"text": "󰅇 0", "alt": "hyprclip", "class": "empty", "tooltip": "hyprclip: no clipboard history yet"}
+
+    lines = ["hyprclip history"]
+    for clip in clips:
+        kind, icon = detect_clip_kind(clip.text)
+        lines.append(f"{icon} {human_age(clip.last_used_at, now=now)} {kind}: {preview_text(clip.text, 80)}")
+    return {"text": f"󰅇 {count}", "alt": "hyprclip", "class": "active", "tooltip": "\n".join(lines)}
 
 
 def parse_menu_selection(selection: str) -> int:
